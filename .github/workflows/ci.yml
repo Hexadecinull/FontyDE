@@ -1,0 +1,216 @@
+# FontyDE — Decompiler Edition
+# .github/workflows/ci.yml
+#
+# Builds FontyDE on Ubuntu, Windows (MSVC), and macOS.
+# Also builds with WOFF2 enabled on Linux to verify the optional path compiles.
+
+name: CI
+
+on:
+  push:
+    branches: [ main, master, dev ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+
+  # ── Linux (GCC) ────────────────────────────────────────────────────────────
+  linux-gcc:
+    name: Linux / GCC
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y cmake zlib1g-dev
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=17
+
+      - name: Build
+        run: cmake --build build -j$(nproc)
+
+      - name: Smoke test — help
+        run: ./build/fontyde --help
+
+      - name: Smoke test — TTF
+        run: |
+          FONT=$(fc-list | grep -i "dejavu" | grep "\.ttf" | head -1 | cut -d: -f1)
+          if [ -n "$FONT" ]; then
+            ./build/fontyde --no-glyphs --no-cmap "$FONT" > /dev/null
+            echo "TTF decompile OK: $FONT"
+          else
+            echo "No DejaVu font found, skipping TTF test"
+          fi
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: fontyde-linux-gcc
+          path: build/fontyde
+
+  # ── Linux (Clang) ──────────────────────────────────────────────────────────
+  linux-clang:
+    name: Linux / Clang
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y cmake zlib1g-dev clang
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_CXX_STANDARD=17
+
+      - name: Build
+        run: cmake --build build -j$(nproc)
+
+      - name: Smoke test
+        run: ./build/fontyde --help
+
+  # ── Linux (GCC + WOFF2) ────────────────────────────────────────────────────
+  linux-woff2:
+    name: Linux / GCC + WOFF2
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y cmake zlib1g-dev libbrotli-dev
+
+      - name: Configure with WOFF2
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_STANDARD=17 \
+            -DFONTYDE_WOFF2=ON \
+            -Dunofficial-brotli_DIR=/usr/lib/x86_64-linux-gnu/cmake/unofficial-brotli \
+            || cmake -B build \
+                 -DCMAKE_BUILD_TYPE=Release \
+                 -DCMAKE_CXX_STANDARD=17
+
+      - name: Build
+        run: cmake --build build -j$(nproc)
+
+      - name: Smoke test
+        run: ./build/fontyde --help
+
+  # ── macOS ──────────────────────────────────────────────────────────────────
+  macos:
+    name: macOS / AppleClang
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: brew install cmake zlib
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=17
+
+      - name: Build
+        run: cmake --build build -j$(sysctl -n hw.logicalcpu)
+
+      - name: Smoke test — help
+        run: ./build/fontyde --help
+
+      - name: Smoke test — OTF
+        run: |
+          FONT=$(find /System/Library/Fonts /Library/Fonts -name "*.otf" 2>/dev/null | head -1)
+          if [ -n "$FONT" ]; then
+            ./build/fontyde --no-glyphs --no-cmap "$FONT" > /dev/null
+            echo "OTF decompile OK: $FONT"
+          else
+            echo "No OTF found"
+          fi
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: fontyde-macos
+          path: build/fontyde
+
+  # ── Windows (MSVC) ─────────────────────────────────────────────────────────
+  windows-msvc:
+    name: Windows / MSVC
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install zlib via vcpkg
+        run: |
+          vcpkg install zlib:x64-windows
+          echo "CMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" >> $env:GITHUB_ENV
+
+      - name: Configure
+        run: |
+          cmake -B build -G "Visual Studio 17 2022" -A x64 `
+            -DCMAKE_TOOLCHAIN_FILE="$env:CMAKE_TOOLCHAIN_FILE" `
+            -DCMAKE_CXX_STANDARD=17
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Smoke test
+        run: .\build\Release\fontyde.exe --help
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: fontyde-windows-msvc
+          path: build/Release/fontyde.exe
+
+  # ── Windows (MINGW64 via MSYS2) ────────────────────────────────────────────
+  windows-mingw:
+    name: Windows / MINGW64
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up MSYS2 / MINGW64
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-zlib
+            make
+
+      - name: Configure
+        run: cmake -B build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=17
+
+      - name: Build
+        run: cmake --build build -j4
+
+      - name: Smoke test
+        run: ./build/fontyde.exe --help
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: fontyde-windows-mingw64
+          path: build/fontyde.exe

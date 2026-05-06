@@ -1,0 +1,173 @@
+# FontyDE — Decompiler Edition
+# .github/workflows/release.yml
+#
+# Triggered when a tag matching v*.*.* is pushed.
+# Builds release binaries for Linux, macOS, and Windows,
+# then creates a GitHub Release with all artifacts attached.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+
+  # ── Linux release binary ───────────────────────────────────────────────────
+  release-linux:
+    name: Release / Linux
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y cmake zlib1g-dev
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=17
+
+      - name: Build
+        run: cmake --build build -j$(nproc)
+
+      - name: Strip binary
+        run: strip build/fontyde
+
+      - name: Package
+        run: |
+          mkdir dist
+          cp build/fontyde dist/
+          cp README.md dist/
+          cp -r docs/ dist/
+          tar -czf fontyde-${{ github.ref_name }}-linux-x86_64.tar.gz -C dist .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-linux
+          path: fontyde-${{ github.ref_name }}-linux-x86_64.tar.gz
+
+  # ── macOS release binary ───────────────────────────────────────────────────
+  release-macos:
+    name: Release / macOS
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: brew install cmake zlib
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=17
+
+      - name: Build
+        run: cmake --build build -j$(sysctl -n hw.logicalcpu)
+
+      - name: Strip binary
+        run: strip build/fontyde
+
+      - name: Package
+        run: |
+          mkdir dist
+          cp build/fontyde dist/
+          cp README.md dist/
+          cp -r docs/ dist/
+          tar -czf fontyde-${{ github.ref_name }}-macos-x86_64.tar.gz -C dist .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-macos
+          path: fontyde-${{ github.ref_name }}-macos-x86_64.tar.gz
+
+  # ── Windows release binary ─────────────────────────────────────────────────
+  release-windows:
+    name: Release / Windows
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-zlib
+            make
+            zip
+
+      - name: Configure
+        run: cmake -B build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=17
+
+      - name: Build
+        run: cmake --build build -j4
+
+      - name: Strip binary
+        run: strip build/fontyde.exe
+
+      - name: Package
+        run: |
+          mkdir dist
+          cp build/fontyde.exe dist/
+          cp README.md dist/
+          cp -r docs/ dist/
+          cd dist
+          zip -r ../fontyde-${{ github.ref_name }}-windows-x86_64.zip .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-windows
+          path: fontyde-${{ github.ref_name }}-windows-x86_64.zip
+
+  # ── Create GitHub Release ──────────────────────────────────────────────────
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [ release-linux, release-macos, release-windows ]
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: FontyDE ${{ github.ref_name }}
+          body: |
+            ## FontyDE ${{ github.ref_name }} — Decompiler Edition
+
+            Universal font decompiler. Converts binary font files into annotated `.fyde` source.
+
+            ### Supported formats
+            TTF · OTF · WOFF · WOFF2* · TTC · OTC · Type 1 PFB/PFA · BDF · FNT · FON
+
+            *WOFF2 requires a build with `-DFONTYDE_WOFF2=ON`
+
+            ### Usage
+            ```
+            fontyde [--no-glyphs] [--no-cmap] [--no-kern] -o out/ font.ttf
+            ```
+
+            See `README.md` for full documentation.
+          files: |
+            artifacts/release-linux/*.tar.gz
+            artifacts/release-macos/*.tar.gz
+            artifacts/release-windows/*.zip
+          draft: false
+          prerelease: false

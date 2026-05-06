@@ -1,0 +1,10 @@
+build/
+*.o
+*.a
+*.so
+*.dll
+*.exe
+fontyde
+*.fyde
+.cache/
+compile_commands.json

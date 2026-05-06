@@ -1,0 +1,36 @@
+# FontyDE — Decompiler Edition
+# .gitattributes
+
+* text=auto eol=lf
+
+*.cpp     text eol=lf
+*.h       text eol=lf
+*.md      text eol=lf
+*.txt     text eol=lf
+*.cmake   text eol=lf
+*.yml     text eol=lf
+*.yaml    text eol=lf
+*.json    text eol=lf
+*.gitignore text eol=lf
+*.gitattributes text eol=lf
+CMakeLists.txt text eol=lf
+
+*.ttf     binary
+*.otf     binary
+*.woff    binary
+*.woff2   binary
+*.pfb     binary
+*.fnt     binary
+*.fon     binary
+*.pcf     binary
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.ico     binary
+*.zip     binary
+*.tar     binary
+*.gz      binary
+
+*.h       linguist-language=C++
+*.cpp     linguist-language=C++
+*.fyde    linguist-detectable=false
