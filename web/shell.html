@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FontyDE — Decompiler Edition</title>
+<style>
+  :root {
+    --bg:      #0d1117;
+    --surface: #161b22;
+    --border:  #30363d;
+    --accent:  #58a6ff;
+    --green:   #3fb950;
+    --red:     #f85149;
+    --text:    #e6edf3;
+    --muted:   #8b949e;
+    --mono:    "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; }
+
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  header h1 { font-size: 1.1rem; font-weight: 600; letter-spacing: .02em; }
+  header .badge {
+    font-size: .7rem;
+    background: var(--accent);
+    color: #000;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-weight: 700;
+  }
+  header .sub { font-size: .8rem; color: var(--muted); margin-left: auto; }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    grid-template-rows: 1fr;
+    height: calc(100vh - 53px);
+  }
+
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .drop-zone {
+    margin: 16px;
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    padding: 28px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+    flex-shrink: 0;
+  }
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(88, 166, 255, .05);
+  }
+  .drop-zone .icon { font-size: 2rem; margin-bottom: 8px; }
+  .drop-zone p { font-size: .82rem; color: var(--muted); line-height: 1.5; }
+  .drop-zone strong { color: var(--accent); cursor: pointer; }
+  #file-input { display: none; }
+
+  .options {
+    margin: 0 16px 12px;
+    flex-shrink: 0;
+  }
+  .options h3 { font-size: .72rem; text-transform: uppercase; letter-spacing: .08em;
+                color: var(--muted); margin-bottom: 8px; }
+  .option-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 0;
+    font-size: .82rem;
+    cursor: pointer;
+    user-select: none;
+  }
+  .option-row input[type=checkbox] {
+    width: 14px; height: 14px;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+  .option-row .tip { font-size: .72rem; color: var(--muted); margin-left: auto; }
+
+  .btn {
+    margin: 0 16px 12px;
+    padding: 9px 0;
+    background: var(--accent);
+    color: #000;
+    font-size: .85rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: opacity .15s;
+    flex-shrink: 0;
+  }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn:not(:disabled):hover { opacity: .85; }
+
+  .btn-dl {
+    margin: 0 16px 16px;
+    padding: 7px 0;
+    background: transparent;
+    color: var(--accent);
+    font-size: .82rem;
+    font-weight: 600;
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background .15s;
+    flex-shrink: 0;
+    display: none;
+  }
+  .btn-dl:hover { background: rgba(88,166,255,.1); }
+
+  .file-list {
+    flex: 1;
+    overflow-y: auto;
+    border-top: 1px solid var(--border);
+    padding: 8px 0;
+  }
+  .file-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 16px;
+    font-size: .81rem;
+    cursor: pointer;
+    transition: background .1s;
+  }
+  .file-item:hover { background: rgba(255,255,255,.03); }
+  .file-item.active { background: rgba(88,166,255,.1); }
+  .file-item .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--muted);
+  }
+  .file-item.done .dot  { background: var(--green); }
+  .file-item.error .dot { background: var(--red); }
+  .file-item .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-item .size { color: var(--muted); font-size: .72rem; flex-shrink: 0; }
+
+  .output-area {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .output-toolbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+    min-height: 40px;
+  }
+  .output-toolbar .filename {
+    font-size: .82rem;
+    color: var(--muted);
+    font-family: var(--mono);
+  }
+  .output-toolbar .stats {
+    font-size: .72rem;
+    color: var(--muted);
+    margin-left: auto;
+  }
+  .copy-btn {
+    padding: 4px 10px;
+    background: transparent;
+    color: var(--muted);
+    font-size: .72rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: color .15s, border-color .15s;
+  }
+  .copy-btn:hover { color: var(--text); border-color: var(--muted); }
+
+  .output-scroller { flex: 1; overflow: auto; }
+  #output {
+    display: block;
+    width: 100%;
+    min-height: 100%;
+    padding: 16px 20px;
+    font-family: var(--mono);
+    font-size: .78rem;
+    line-height: 1.6;
+    color: var(--text);
+    background: var(--bg);
+    white-space: pre;
+    border: none;
+    outline: none;
+    tab-size: 2;
+  }
+
+  .status-bar {
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 4px 16px;
+    font-size: .72rem;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  .status-bar .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); }
+  .status-bar .dot.ready { background: var(--green); }
+  .status-bar .dot.busy  { background: #d29922; animation: pulse 1s infinite; }
+  .status-bar .dot.error { background: var(--red); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  .highlight-comment { color: #8b949e; }
+  .highlight-key     { color: #79c0ff; }
+  .highlight-value   { color: #a5d6ff; }
+  .highlight-string  { color: #a8d8a8; }
+  .highlight-section { color: #d2a679; font-weight: 600; }
+  .highlight-hex     { color: #f0a070; }
+  .highlight-number  { color: #79c0ff; }
+
+  @media (max-width: 700px) {
+    .layout { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+    .sidebar { border-right: none; border-bottom: 1px solid var(--border); max-height: 50vh; }
+  }
+
+  .loading-ring {
+    display: none;
+    width: 16px; height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>FontyDE</h1>
+  <span class="badge">Decompiler Edition</span>
+  <span class="sub">Universal font decompiler — all processing is local, nothing is uploaded</span>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="drop-zone" id="drop-zone">
+      <div class="icon">🔤</div>
+      <p>Drop font files here<br>or <strong id="browse-link">browse</strong></p>
+      <p style="margin-top:8px;font-size:.72rem">
+        TTF · OTF · WOFF · WOFF2 · TTC · PFB · PFA<br>
+        BDF · FNT · FON · PSF · PCF · AFM · SVG · BMFont
+      </p>
+    </div>
+    <input type="file" id="file-input" multiple
+      accept=".ttf,.otf,.woff,.woff2,.ttc,.otc,.pfb,.pfa,.bdf,.fnt,.fon,.psf,.psf2,.pcf,.afm,.svg">
+
+    <div class="options">
+      <h3>Options</h3>
+      <label class="option-row">
+        <input type="checkbox" id="opt-no-glyphs">
+        Skip glyph outlines
+        <span class="tip">faster</span>
+      </label>
+      <label class="option-row">
+        <input type="checkbox" id="opt-no-cmap">
+        Skip cmap table
+      </label>
+      <label class="option-row">
+        <input type="checkbox" id="opt-no-kern">
+        Skip kerning pairs
+      </label>
+      <label class="option-row">
+        <input type="checkbox" id="opt-no-bitmaps">
+        Skip bitmap rows
+      </label>
+    </div>
+
+    <button class="btn" id="run-btn" disabled>Decompile</button>
+    <button class="btn-dl" id="dl-btn">⬇ Download .fyde</button>
+
+    <div class="file-list" id="file-list"></div>
+  </aside>
+
+  <div class="output-area">
+    <div class="output-toolbar">
+      <span class="filename" id="toolbar-name">no file selected</span>
+      <div class="loading-ring" id="loading-ring"></div>
+      <span class="stats" id="toolbar-stats"></span>
+      <button class="copy-btn" id="copy-btn">Copy</button>
+    </div>
+    <div class="output-scroller">
+      <pre id="output"># FontyDE Web Edition
+# Drop a font file on the left to decompile it.
+# All processing happens locally in your browser via WebAssembly.
+# Nothing is sent to any server.
+</pre>
+    </div>
+    <div class="status-bar">
+      <div class="dot" id="status-dot"></div>
+      <span id="status-text">Loading WebAssembly module...</span>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  var files = [];
+  var activeIdx = -1;
+  var results = {};
+  var moduleReady = false;
+
+  var dropZone   = document.getElementById('drop-zone');
+  var fileInput  = document.getElementById('file-input');
+  var browseLink = document.getElementById('browse-link');
+  var fileList   = document.getElementById('file-list');
+  var runBtn     = document.getElementById('run-btn');
+  var dlBtn      = document.getElementById('dl-btn');
+  var output     = document.getElementById('output');
+  var copyBtn    = document.getElementById('copy-btn');
+  var statusDot  = document.getElementById('status-dot');
+  var statusText = document.getElementById('status-text');
+  var toolbarName= document.getElementById('toolbar-name');
+  var toolbarStats=document.getElementById('toolbar-stats');
+  var loadingRing= document.getElementById('loading-ring');
+
+  function setStatus(state, msg) {
+    statusDot.className = 'dot ' + state;
+    statusText.textContent = msg;
+  }
+
+  function fmtSize(n) {
+    if (n < 1024) return n + ' B';
+    if (n < 1048576) return (n/1024).toFixed(1) + ' KB';
+    return (n/1048576).toFixed(1) + ' MB';
+  }
+
+  function renderFileList() {
+    fileList.innerHTML = '';
+    files.forEach(function(f, i) {
+      var item = document.createElement('div');
+      item.className = 'file-item' +
+        (results[i] === 'error' ? ' error' : results[i] ? ' done' : '') +
+        (i === activeIdx ? ' active' : '');
+      item.innerHTML =
+        '<div class="dot"></div>' +
+        '<span class="name" title="' + f.name + '">' + f.name + '</span>' +
+        '<span class="size">' + fmtSize(f.size) + '</span>';
+      item.onclick = function() {
+        activeIdx = i;
+        renderFileList();
+        if (results[i] && results[i] !== 'error') showResult(i);
+        else { toolbarName.textContent = f.name; toolbarStats.textContent = ''; dlBtn.style.display='none'; }
+      };
+      fileList.appendChild(item);
+    });
+  }
+
+  function addFiles(newFiles) {
+    Array.from(newFiles).forEach(function(f) { files.push(f); });
+    runBtn.disabled = !moduleReady || files.length === 0;
+    renderFileList();
+  }
+
+  function highlight(text) {
+    return text
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .split('\n').map(function(line) {
+        if (/^\s*#/.test(line)) return '<span class="highlight-comment">'+line+'</span>';
+        if (/^\s*#\s*──/.test(line)) return '<span class="highlight-section">'+line+'</span>';
+        var m = line.match(/^(\s*)([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
+        if (m) {
+          var val = m[3];
+          var valSpan;
+          if (/^"/.test(val))
+            valSpan = '<span class="highlight-string">'+val+'</span>';
+          else if (/^0x[0-9A-Fa-f]+/.test(val))
+            valSpan = '<span class="highlight-hex">'+val+'</span>';
+          else if (/^-?[\d.]+/.test(val))
+            valSpan = '<span class="highlight-number">'+val+'</span>';
+          else
+            valSpan = '<span class="highlight-value">'+val+'</span>';
+          return m[1]+'<span class="highlight-key">'+m[2]+'</span> = '+valSpan;
+        }
+        return line;
+      }).join('\n');
+  }
+
+  function showResult(i) {
+    var text = results[i];
+    output.innerHTML = highlight(text);
+    var lines = text.split('\n').length;
+    var chars = text.length;
+    toolbarName.textContent = files[i].name + '.fyde';
+    toolbarStats.textContent = lines.toLocaleString() + ' lines · ' + fmtSize(chars);
+    dlBtn.style.display = 'block';
+    dlBtn.onclick = function() {
+      var blob = new Blob([text], {type:'text/plain'});
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = files[i].name.replace(/\.[^.]+$/,'') + '.fyde';
+      a.click();
+    };
+  }
+
+  dropZone.addEventListener('dragover', function(e) { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', function() { dropZone.classList.remove('drag-over'); });
+  dropZone.addEventListener('drop', function(e) {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    addFiles(e.dataTransfer.files);
+  });
+  browseLink.onclick = function(e) { e.stopPropagation(); fileInput.click(); };
+  dropZone.onclick   = function() { fileInput.click(); };
+  fileInput.onchange = function() { addFiles(fileInput.files); fileInput.value=''; };
+
+  copyBtn.onclick = function() {
+    var text = output.innerText || output.textContent;
+    if (!text || text.startsWith('# FontyDE Web')) return;
+    navigator.clipboard.writeText(text).then(function() {
+      copyBtn.textContent = 'Copied!';
+      setTimeout(function() { copyBtn.textContent = 'Copy'; }, 1500);
+    });
+  };
+
+  runBtn.onclick = function() {
+    if (!window.FontyDE) { setStatus('error','WASM not ready'); return; }
+    var opts = {
+      noGlyphs:  document.getElementById('opt-no-glyphs').checked,
+      noCmap:    document.getElementById('opt-no-cmap').checked,
+      noKern:    document.getElementById('opt-no-kern').checked,
+      noBitmaps: document.getElementById('opt-no-bitmaps').checked
+    };
+
+    runBtn.disabled = true;
+    loadingRing.style.display = 'block';
+    setStatus('busy', 'Decompiling...');
+
+    var idx = 0;
+    function processNext() {
+      if (idx >= files.length) {
+        runBtn.disabled = false;
+        loadingRing.style.display = 'none';
+        setStatus('ready', 'Done — ' + files.length + ' file(s) decompiled');
+        return;
+      }
+      var i = idx++;
+      var f = files[i];
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var arr = new Uint8Array(e.target.result);
+        try {
+          var result = window.FontyDE.decompile(arr, f.name, opts);
+          if (result) {
+            results[i] = result;
+          } else {
+            results[i] = 'error';
+            setStatus('error', 'Failed: ' + f.name);
+          }
+        } catch(err) {
+          results[i] = 'error';
+        }
+        activeIdx = i;
+        renderFileList();
+        if (results[i] && results[i] !== 'error') showResult(i);
+        processNext();
+      };
+      reader.readAsArrayBuffer(f);
+    }
+    processNext();
+  };
+
+  window.FontyDEReady = function() {
+    moduleReady = true;
+    runBtn.disabled = files.length === 0;
+    setStatus('ready', 'Ready — drop a font file to decompile it');
+  };
+
+  {{{ SCRIPT }}}
+})();
+</script>
+</body>
+</html>

@@ -621,3 +621,297 @@ void emit_bdf_to_file(const BdfFont& bdf, const std::string& src, const std::str
 }
 
 } // namespace fontyde
+
+// ─────────────────────────────────────────────────────────────────────────────
+// New format emitters — inside namespace fontyde
+// ─────────────────────────────────────────────────────────────────────────────
+
+namespace fontyde {
+
+void FydeEmitter::emit_angelcode(const BmfFont& bmf, const std::string& path,
+                                  const EmitOptions& opts) {
+    out_ << "# ============================================================\n";
+    out_ << "# FontyDE Decompiled AngelCode BMFont\n";
+    out_ << "# Face    : " << bmf.info.face << "\n";
+    out_ << "# Size    : " << bmf.info.size << "px\n";
+    out_ << "# Pages   : " << bmf.pages.size() << "\n";
+    out_ << "# Glyphs  : " << bmf.chars.size() << "\n";
+    out_ << "# Kernings: " << bmf.kernings.size() << "\n";
+    out_ << "# Source  : " << path << "\n";
+    out_ << "# ============================================================\n\n";
+
+    open("angelcode_bmfont");
+    section("info block");
+    comment("size: pixel size the font was rendered at");
+    open("info");
+    kv("face",      "\"" + bmf.info.face + "\"");
+    kv("size",      std::to_string(bmf.info.size), "px");
+    kv("bold",      bmf.info.bold   ? "true" : "false");
+    kv("italic",    bmf.info.italic ? "true" : "false");
+    kv("charset",   "\"" + bmf.info.charset + "\"");
+    kv("unicode",   bmf.info.unicode ? "true" : "false");
+    kv("stretch_h", std::to_string(bmf.info.stretch_h), "% vertical stretch");
+    kv("smooth",    bmf.info.smooth ? "true" : "false");
+    kv("aa",        std::to_string(bmf.info.aa), "supersampling level");
+    kv("outline",   std::to_string(bmf.info.outline), "px outline thickness");
+    close();
+
+    section("common block");
+    comment("line_height: recommended line advance in px");
+    comment("base: px from top of line to baseline");
+    comment("scale_w/h: atlas texture dimensions");
+    open("common");
+    kv("line_height",  std::to_string(bmf.common.line_height));
+    kv("base",         std::to_string(bmf.common.base));
+    kv("scale_w",      std::to_string(bmf.common.scale_w));
+    kv("scale_h",      std::to_string(bmf.common.scale_h));
+    kv("pages",        std::to_string(bmf.common.pages));
+    kv("packed",       bmf.common.packed ? "true" : "false",
+       "true = multiple channels pack different glyphs");
+    kv("alpha_chnl",   std::to_string(bmf.common.alpha_chnl),
+       "0=glyph,1=outline,2=glyph+outline,3=zero,4=one");
+    kv("red_chnl",     std::to_string(bmf.common.red_chnl));
+    kv("green_chnl",   std::to_string(bmf.common.green_chnl));
+    kv("blue_chnl",    std::to_string(bmf.common.blue_chnl));
+    close();
+
+    section("page atlas textures");
+    for (size_t i = 0; i < bmf.pages.size(); i++)
+        kv("page_" + std::to_string(i), "\"" + bmf.pages[i] + "\"");
+
+    section("char descriptors");
+    comment("x/y: top-left in atlas texture (px)");
+    comment("x_offset/y_offset: draw offset from cursor to glyph top-left");
+    comment("x_advance: cursor advance after drawing this glyph");
+    comment("page: atlas page index, chnl: RGBA channel bits");
+    for (auto& c : bmf.chars) {
+        open("char_" + std::to_string(c.id));
+        kv("id",        std::to_string(c.id));
+        kv("x",         std::to_string(c.x));
+        kv("y",         std::to_string(c.y));
+        kv("width",     std::to_string(c.width));
+        kv("height",    std::to_string(c.height));
+        kv("x_offset",  std::to_string(c.x_offset));
+        kv("y_offset",  std::to_string(c.y_offset));
+        kv("x_advance", std::to_string(c.x_advance));
+        kv("page",      std::to_string(c.page));
+        kv("chnl",      std::to_string(c.chnl));
+        close();
+    }
+
+    if (!bmf.kernings.empty() && opts.emit_kerning) {
+        section("kerning pairs");
+        comment("amount: px to add to x_advance between first and second codepoints");
+        for (auto& k : bmf.kernings) {
+            out_ << indent_str()
+                 << "kern  first=" << k.first
+                 << " second=" << k.second
+                 << " amount=" << k.amount << "\n";
+        }
+    }
+    close();
+}
+
+void FydeEmitter::emit_psf(const PsfFont& psf, const std::string& path,
+                             const EmitOptions& opts) {
+    out_ << "# ============================================================\n";
+    out_ << "# FontyDE Decompiled PC Screen Font (PSF" << psf.version << ")\n";
+    out_ << "# Glyphs  : " << psf.glyph_count << "\n";
+    out_ << "# Size    : " << psf.width << "x" << psf.height << " px\n";
+    out_ << "# Unicode : " << (psf.has_unicode_table ? "yes" : "no") << "\n";
+    out_ << "# Source  : " << path << "\n";
+    out_ << "# ============================================================\n\n";
+
+    open("psf_font");
+    kv("version",          std::to_string(psf.version));
+    kv("glyph_count",      std::to_string(psf.glyph_count));
+    kv("bytes_per_glyph",  std::to_string(psf.bytes_per_glyph),
+       "width=" + std::to_string(psf.width) + " height=" + std::to_string(psf.height));
+    kv("has_unicode_table", psf.has_unicode_table ? "true" : "false");
+
+    section("glyphs");
+    comment("Each bitmap row is one byte per 8 pixels, MSB = leftmost pixel.");
+    comment("# = ink, . = background");
+
+    for (auto& g : psf.glyphs) {
+        open("glyph_" + std::to_string(g.index));
+
+        if (!g.codepoints.empty()) {
+            std::string cps;
+            for (size_t i = 0; i < g.codepoints.size(); i++) {
+                if (i) cps += " ";
+                std::ostringstream oss;
+                oss << "U+" << std::hex << std::uppercase
+                    << std::setw(4) << std::setfill('0') << g.codepoints[i];
+                cps += oss.str();
+            }
+            kv("codepoints", cps);
+        }
+
+        if (opts.emit_bitmap_rows && !g.bitmap.empty()) {
+            u32 row_bytes = (psf.width + 7) / 8;
+            for (u32 row = 0; row < psf.height; row++) {
+                if (row * row_bytes >= g.bitmap.size()) break;
+                std::string pixels;
+                for (u32 col = 0; col < psf.width; col++) {
+                    u32 byte_idx = row * row_bytes + col / 8;
+                    u8  bit_mask = static_cast<u8>(0x80u >> (col % 8));
+                    pixels += (byte_idx < g.bitmap.size() &&
+                               (g.bitmap[byte_idx] & bit_mask)) ? '#' : '.';
+                }
+                u8 first_byte = (row * row_bytes < g.bitmap.size())
+                                ? g.bitmap[row * row_bytes] : 0;
+                out_ << indent_str()
+                     << std::hex << std::uppercase
+                     << std::setw(2) << std::setfill('0')
+                     << static_cast<unsigned>(first_byte)
+                     << std::dec << "  # " << pixels << "\n";
+            }
+        }
+        close();
+    }
+    close();
+}
+
+void FydeEmitter::emit_pcf(const PcfFont& pcf, const std::string& path) {
+    out_ << "# ============================================================\n";
+    out_ << "# FontyDE Decompiled PCF Bitmap Font\n";
+    out_ << "# Glyphs  : " << pcf.glyphs.size() << "\n";
+    out_ << "# Source  : " << path << "\n";
+    out_ << "# ============================================================\n\n";
+
+    open("pcf_font");
+    kv("font_ascent",  std::to_string(pcf.font_ascent));
+    kv("font_descent", std::to_string(pcf.font_descent));
+    kv("default_char", std::to_string(pcf.default_char));
+
+    section("properties");
+    open("properties");
+    for (auto& kp : pcf.props.string_props) kv(kp.first, "\"" + kp.second + "\"");
+    for (auto& kp : pcf.props.int_props)    kv(kp.first, std::to_string(kp.second));
+    close();
+
+    section("glyphs");
+    comment("left_sb/right_sb: side bearings, width: advance, ascent/descent: row counts");
+    for (auto& g : pcf.glyphs) {
+        open("glyph_" + std::to_string(g.index));
+        kv("left_side_bearing",  std::to_string(g.metric.left_side_bearing));
+        kv("right_side_bearing", std::to_string(g.metric.right_side_bearing));
+        kv("character_width",    std::to_string(g.metric.character_width));
+        kv("character_ascent",   std::to_string(g.metric.character_ascent));
+        kv("character_descent",  std::to_string(g.metric.character_descent));
+        kv("bitmap_bytes",       std::to_string(g.bitmap.size()));
+        close();
+    }
+    close();
+}
+
+void FydeEmitter::emit_afm(const AfmFont& afm, const std::string& path) {
+    out_ << "# ============================================================\n";
+    out_ << "# FontyDE Decompiled Adobe Font Metrics (AFM)\n";
+    out_ << "# Font    : " << afm.font_name << "\n";
+    out_ << "# Glyphs  : " << afm.char_metrics.size() << "\n";
+    out_ << "# Kerning : " << afm.kern_pairs.size() << " pairs\n";
+    out_ << "# Source  : " << path << "\n";
+    out_ << "# ============================================================\n\n";
+
+    open("afm_font");
+    section("global metrics");
+    comment("width_x: advance width in design units (1/1000 pt for standard Type 1)");
+    open("global");
+    kv("font_name",            "\"" + afm.font_name + "\"");
+    kv("full_name",            "\"" + afm.full_name + "\"");
+    kv("family_name",          "\"" + afm.family_name + "\"");
+    kv("weight",               "\"" + afm.weight + "\"");
+    kv("encoding_scheme",      "\"" + afm.encoding_scheme + "\"");
+    kv("is_fixed_pitch",       afm.is_fixed_pitch ? "true" : "false");
+    kv("italic_angle",         std::to_string(afm.italic_angle), "degrees");
+    kv("underline_position",   std::to_string(afm.underline_position));
+    kv("underline_thickness",  std::to_string(afm.underline_thickness));
+    kv("font_bbox",
+       std::to_string(afm.llx) + " " + std::to_string(afm.lly) +
+       " " + std::to_string(afm.urx) + " " + std::to_string(afm.ury));
+    kv("cap_height",  std::to_string(afm.cap_height));
+    kv("x_height",   std::to_string(afm.x_height));
+    kv("ascender",   std::to_string(afm.ascender));
+    kv("descender",  std::to_string(afm.descender));
+    close();
+
+    section("character metrics");
+    for (auto& m : afm.char_metrics) {
+        open(m.name.empty() ? "char_" + std::to_string(m.code) : m.name);
+        kv("code",    std::to_string(m.code));
+        kv("name",    "\"" + m.name + "\"");
+        kv("width_x", std::to_string(m.width_x));
+        kv("bbox",
+           std::to_string(m.llx) + " " + std::to_string(m.lly) +
+           " " + std::to_string(m.urx) + " " + std::to_string(m.ury));
+        close();
+    }
+
+    if (!afm.kern_pairs.empty()) {
+        section("kerning pairs");
+        for (auto& k : afm.kern_pairs) {
+            out_ << indent_str()
+                 << "kern  \"" << k.name1 << "\" \"" << k.name2
+                 << "\"  dx=" << k.dx;
+            if (k.dy != 0) out_ << " dy=" << k.dy;
+            out_ << "\n";
+        }
+    }
+    close();
+}
+
+void FydeEmitter::emit_svg_font(const SvgFont& svg, const std::string& path) {
+    out_ << "# ============================================================\n";
+    out_ << "# FontyDE Decompiled SVG Font\n";
+    out_ << "# Family  : " << svg.font_face.font_family << "\n";
+    out_ << "# Glyphs  : " << svg.glyphs.size() << "\n";
+    out_ << "# UPM     : " << svg.font_face.units_per_em << "\n";
+    out_ << "# Source  : " << path << "\n";
+    out_ << "# ============================================================\n\n";
+
+    open("svg_font");
+    kv("id",          "\"" + svg.id + "\"");
+    kv("horiz_adv_x", std::to_string(svg.horiz_adv_x),
+       "default advance width in font units");
+
+    section("font-face");
+    comment("SVG font-face maps to CSS @font-face and OpenType OS/2 metrics.");
+    open("font_face");
+    kv("font_family",         "\"" + svg.font_face.font_family + "\"");
+    kv("units_per_em",        std::to_string(svg.font_face.units_per_em));
+    kv("ascent",              std::to_string(svg.font_face.ascent));
+    kv("descent",             std::to_string(svg.font_face.descent));
+    kv("x_height",            std::to_string(svg.font_face.x_height));
+    kv("cap_height",          std::to_string(svg.font_face.cap_height));
+    kv("slope",               std::to_string(svg.font_face.slope));
+    kv("underline_position",  std::to_string(svg.font_face.underline_position));
+    kv("underline_thickness", std::to_string(svg.font_face.underline_thickness));
+    kv("panose_1",            "\"" + svg.font_face.panose_1 + "\"");
+    close();
+
+    if (!svg.missing_glyph.d.empty()) {
+        section("missing-glyph (.notdef equivalent)");
+        open("missing_glyph");
+        kv("horiz_adv_x", std::to_string(svg.missing_glyph.horiz_adv_x));
+        kv("d", "\"" + svg.missing_glyph.d + "\"");
+        close();
+    }
+
+    section("glyphs");
+    comment("d: SVG path data — M=moveto L=lineto C=curveto Z=closepath");
+    comment("horiz_adv_x: advance in font units (Y-axis inverted vs CSS)");
+    for (auto& g : svg.glyphs) {
+        std::string gname = g.glyph_name.empty() ? "glyph" : g.glyph_name;
+        open(gname);
+        kv("unicode",     "\"" + g.unicode + "\"");
+        kv("glyph_name",  "\"" + g.glyph_name + "\"");
+        kv("horiz_adv_x", std::to_string(g.horiz_adv_x));
+        if (!g.d.empty()) kv("d", "\"" + g.d + "\"");
+        close();
+    }
+    close();
+}
+
+} // namespace fontyde
