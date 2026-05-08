@@ -3,7 +3,7 @@
 // src/tables/os2.cpp
 //
 
-#include "fontyde/tables/os2.h"
+#include "../fontyde/tables/os2.h"
 
 namespace fontyde {
 

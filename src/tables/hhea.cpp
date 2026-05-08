@@ -3,7 +3,7 @@
 // src/tables/hhea.cpp
 //
 
-#include "fontyde/tables/hhea.h"
+#include "../fontyde/tables/hhea.h"
 
 namespace fontyde {
 

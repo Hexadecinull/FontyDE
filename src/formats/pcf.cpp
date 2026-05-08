@@ -6,9 +6,9 @@
 //   PCF_PROPERTIES(1), PCF_METRICS(4), PCF_BITMAPS(8), PCF_BDF_ENCODINGS(16)
 //
 
-#include "fontyde/formats/pcf.h"
-#include "fontyde/reader.h"
-#include "fontyde/emitter/fyde_emitter.h"
+#include "../fontyde/formats/pcf.h"
+#include "../fontyde/reader.h"
+#include "../fontyde/emitter/fyde_emitter.h"
 #include <fstream>
 
 namespace fontyde {

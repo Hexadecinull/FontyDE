@@ -3,7 +3,7 @@
 // src/tables/maxp.cpp
 //
 
-#include "fontyde/tables/maxp.h"
+#include "../fontyde/tables/maxp.h"
 
 namespace fontyde {
 

@@ -3,7 +3,7 @@
 // src/tables/hmtx.cpp
 //
 
-#include "fontyde/tables/hmtx.h"
+#include "../fontyde/tables/hmtx.h"
 
 namespace fontyde {
 

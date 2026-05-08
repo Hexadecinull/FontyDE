@@ -3,7 +3,7 @@
 // src/tables/kern.cpp
 //
 
-#include "fontyde/tables/kern.h"
+#include "../fontyde/tables/kern.h"
 
 namespace fontyde {
 

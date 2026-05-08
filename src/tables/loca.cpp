@@ -3,7 +3,7 @@
 // src/tables/loca.cpp
 //
 
-#include "fontyde/tables/loca.h"
+#include "../fontyde/tables/loca.h"
 
 namespace fontyde {
 

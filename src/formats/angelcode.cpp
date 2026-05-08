@@ -6,9 +6,9 @@
 // Text variant: key=value lines. Binary variant: block-based with block type IDs.
 //
 
-#include "fontyde/formats/angelcode.h"
-#include "fontyde/reader.h"
-#include "fontyde/emitter/fyde_emitter.h"
+#include "../fontyde/formats/angelcode.h"
+#include "../fontyde/reader.h"
+#include "../fontyde/emitter/fyde_emitter.h"
 #include <sstream>
 #include <cctype>
 #include <algorithm>

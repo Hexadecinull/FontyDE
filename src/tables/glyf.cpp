@@ -3,8 +3,8 @@
 // src/tables/glyf.cpp
 //
 
-#include "fontyde/tables/glyf.h"
-#include "fontyde/tables/loca.h"
+#include "../fontyde/tables/glyf.h"
+#include "../fontyde/tables/loca.h"
 
 namespace fontyde {
 

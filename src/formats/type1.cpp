@@ -8,8 +8,8 @@
 //   Charstrings inside are encrypted with a second pass (key=4330).
 //
 
-#include "fontyde/formats/type1.h"
-#include "fontyde/reader.h"
+#include "../fontyde/formats/type1.h"
+#include "../fontyde/reader.h"
 #include <sstream>
 #include <cctype>
 #include <algorithm>

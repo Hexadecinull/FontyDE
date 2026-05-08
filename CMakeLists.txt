@@ -8,10 +8,14 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 option(FONTYDE_WOFF2 "Enable WOFF2 support via brotli"    OFF)
 option(FONTYDE_WEB   "Build Emscripten WebAssembly target" OFF)
 
-# Headers live inside src/fontyde/ — same directory tree as the .cpp files.
-# This means there is no separate include/ directory that could go missing.
-# The compiler resolves #include "fontyde/types.h" from src/.
-set(FONTYDE_SRC "${CMAKE_CURRENT_LIST_DIR}/src")
+# No separate include/ directory exists.
+# All headers live inside src/fontyde/ (sibling to the .cpp files).
+# Every #include uses a relative path so no -I flag is needed at all:
+#   src/main.cpp            uses  "fontyde/X"      -> finds src/fontyde/X
+#   src/tables/foo.cpp      uses  "../fontyde/X"   -> finds src/fontyde/X
+#   src/fontyde/font.h      uses  "tables/X"       -> finds src/fontyde/tables/X
+#   src/fontyde/tables/X.h  uses  "../reader.h"    -> finds src/fontyde/reader.h
+# This works on every compiler, OS, and wrapper (emcmake, NDK, MSVC).
 
 if(ANDROID)
     find_library(ZLIB_LIBRARY z)
@@ -35,19 +39,15 @@ if(FONTYDE_WOFF2 AND NOT FONTYDE_WEB)
 endif()
 
 file(GLOB_RECURSE FONTYDE_SOURCES
-    "${FONTYDE_SRC}/*.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/src/*.cpp"
 )
-
-if(NOT FONTYDE_SOURCES)
-    message(FATAL_ERROR "No .cpp files found under ${FONTYDE_SRC}")
-endif()
 
 add_executable(fontyde ${FONTYDE_SOURCES})
 
-# Point the compiler at src/ so that #include "fontyde/types.h" resolves
-# to src/fontyde/types.h — which is always present alongside the .cpp files.
-target_include_directories(fontyde PRIVATE "${FONTYDE_SRC}")
-include_directories("${FONTYDE_SRC}")
+# src/ is the include root — resolves "fontyde/X" to src/fontyde/X
+target_include_directories(fontyde PRIVATE
+    "${CMAKE_CURRENT_LIST_DIR}/src"
+)
 
 if(ANDROID)
     target_link_libraries(fontyde PRIVATE ${ZLIB_LIBRARY})

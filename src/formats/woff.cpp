@@ -3,9 +3,9 @@
 // src/formats/woff.cpp
 //
 
-#include "fontyde/formats/woff.h"
-#include "fontyde/formats/ttf.h"
-#include "fontyde/reader.h"
+#include "../fontyde/formats/woff.h"
+#include "../fontyde/formats/ttf.h"
+#include "../fontyde/reader.h"
 #include <zlib.h>
 #include <cstring>
 

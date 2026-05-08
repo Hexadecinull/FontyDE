@@ -6,8 +6,8 @@
 // Minimal SAX-like XML parser — no external XML library needed.
 //
 
-#include "fontyde/formats/svgfont.h"
-#include "fontyde/emitter/fyde_emitter.h"
+#include "../fontyde/formats/svgfont.h"
+#include "../fontyde/emitter/fyde_emitter.h"
 #include <fstream>
 #include <algorithm>
 #include <cstdlib>

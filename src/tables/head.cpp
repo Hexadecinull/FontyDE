@@ -3,7 +3,7 @@
 // src/tables/head.cpp
 //
 
-#include "fontyde/tables/head.h"
+#include "../fontyde/tables/head.h"
 
 namespace fontyde {
 

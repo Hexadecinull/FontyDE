@@ -7,8 +7,8 @@
 // The NE format predates PE; it uses a segment table and resource table.
 //
 
-#include "fontyde/formats/fnt.h"
-#include "fontyde/reader.h"
+#include "../fontyde/formats/fnt.h"
+#include "../fontyde/reader.h"
 
 namespace fontyde {
 

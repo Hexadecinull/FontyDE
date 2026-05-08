@@ -7,9 +7,9 @@
 // Enable at build time with -DFONTYDE_WOFF2=ON (requires libbrotlidec).
 //
 
-#include "fontyde/formats/woff2.h"
-#include "fontyde/formats/ttf.h"
-#include "fontyde/reader.h"
+#include "../fontyde/formats/woff2.h"
+#include "../fontyde/formats/ttf.h"
+#include "../fontyde/reader.h"
 
 #ifdef FONTYDE_ENABLE_WOFF2
 #include <brotli/decode.h>

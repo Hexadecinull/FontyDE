@@ -6,9 +6,9 @@
 // PSF2: magic 0x72 0xb5 0x4a 0x86, variable width/height, unicode table.
 //
 
-#include "fontyde/formats/psf.h"
-#include "fontyde/reader.h"
-#include "fontyde/emitter/fyde_emitter.h"
+#include "../fontyde/formats/psf.h"
+#include "../fontyde/reader.h"
+#include "../fontyde/emitter/fyde_emitter.h"
 #include <fstream>
 
 namespace fontyde {

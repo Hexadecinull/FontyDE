@@ -3,7 +3,7 @@
 // src/tables/cff.cpp
 //
 
-#include "fontyde/tables/cff.h"
+#include "../fontyde/tables/cff.h"
 #include <cstring>
 #include <cmath>
 

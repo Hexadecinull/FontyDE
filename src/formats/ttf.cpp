@@ -3,21 +3,21 @@
 // src/formats/ttf.cpp
 //
 
-#include "fontyde/formats/ttf.h"
-#include "fontyde/reader.h"
+#include "../fontyde/formats/ttf.h"
+#include "../fontyde/reader.h"
 #include <algorithm>
-#include "fontyde/tables/head.h"
-#include "fontyde/tables/name.h"
-#include "fontyde/tables/cmap.h"
-#include "fontyde/tables/hhea.h"
-#include "fontyde/tables/hmtx.h"
-#include "fontyde/tables/maxp.h"
-#include "fontyde/tables/post.h"
-#include "fontyde/tables/os2.h"
-#include "fontyde/tables/loca.h"
-#include "fontyde/tables/glyf.h"
-#include "fontyde/tables/cff.h"
-#include "fontyde/tables/kern.h"
+#include "../fontyde/tables/head.h"
+#include "../fontyde/tables/name.h"
+#include "../fontyde/tables/cmap.h"
+#include "../fontyde/tables/hhea.h"
+#include "../fontyde/tables/hmtx.h"
+#include "../fontyde/tables/maxp.h"
+#include "../fontyde/tables/post.h"
+#include "../fontyde/tables/os2.h"
+#include "../fontyde/tables/loca.h"
+#include "../fontyde/tables/glyf.h"
+#include "../fontyde/tables/cff.h"
+#include "../fontyde/tables/kern.h"
 
 namespace fontyde {
 

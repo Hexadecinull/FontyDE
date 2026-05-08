@@ -7,7 +7,7 @@
 // The format is designed to be diff-friendly, comment-rich, and re-parseable.
 //
 
-#include "fontyde/emitter/fyde_emitter.h"
+#include "../fontyde/emitter/fyde_emitter.h"
 #include <iomanip>
 #include <sstream>
 #include <ctime>

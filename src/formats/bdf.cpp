@@ -3,7 +3,7 @@
 // src/formats/bdf.cpp
 //
 
-#include "fontyde/formats/bdf.h"
+#include "../fontyde/formats/bdf.h"
 #include <sstream>
 #include <algorithm>
 #include <cctype>

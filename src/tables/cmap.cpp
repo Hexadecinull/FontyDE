@@ -3,7 +3,7 @@
 // src/tables/cmap.cpp
 //
 
-#include "fontyde/tables/cmap.h"
+#include "../fontyde/tables/cmap.h"
 
 namespace fontyde {
 

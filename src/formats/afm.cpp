@@ -3,8 +3,8 @@
 // src/formats/afm.cpp
 //
 
-#include "fontyde/formats/afm.h"
-#include "fontyde/emitter/fyde_emitter.h"
+#include "../fontyde/formats/afm.h"
+#include "../fontyde/emitter/fyde_emitter.h"
 #include <sstream>
 #include <cstdlib>
 #include <fstream>
